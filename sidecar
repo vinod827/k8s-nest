@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nginx-sidecar
+  name: nginx-sidecar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-sidecar
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx-sidecar
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        resources: {}
+        volumeMounts:
+        - name: log-volume
+          mountPath: /var/log/nginx
+      - image: bash
+        name: sidecar
+        command: ["/bin/sh","-c","tail -f /var/sidecar/access.log"]
+        volumeMounts:
+        - name: log-volume
+          mountPath: /var/sidecar
+      volumes:
+      - name: log-volume
+        emptyDir: {}
+status: {}
