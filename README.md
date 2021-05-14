@@ -5,6 +5,6 @@
 All k8s manifests lives here
 
 
-
+1) ECS Cluster with Service, Task definitions and Load Balancers
 
 
