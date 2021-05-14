@@ -11,7 +11,7 @@ Parameters:
   InstanceType:
     Description: Which instance type should we use to build the ECS cluster?
     Type: String
-    Default: t3a.xlarge
+    Default: t2.small
     AllowedValues:
       - t2.micro
       - t2.small
@@ -70,7 +70,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: ECS Security Group
-      VpcId: !Ref 'VpcId'
+      VpcId: !Ref VpcId
 
   EcsSecurityGroupAllTrafficInbound:
     Type: AWS::EC2::SecurityGroupIngress
@@ -78,7 +78,7 @@ Resources:
         GroupId: !Ref 'EcsSecurityGroup'
         IpProtocol: -1
         CidrIp: 0.0.0.0/0
-        
+
   ECSAutoScalingGroup:
     DependsOn: ECSCluster
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -336,6 +336,28 @@ Resources:
         }
 
 Outputs:
+  VPC:
+    Description: VPC Id for the ECS Cluster
+    Value: !Ref VpcId
+    Export:
+      Name: !Sub
+        - '${ExportPrefix_}:${AWS::Region}:${AWS::AccountId}:Vpc:Id'
+        - ExportPrefix_: !If
+          - HasExportPrefix
+          - !Ref ExportPrefix
+          - 'sct'
+  VPCPrivateSubnets:
+    Description: VPC Subnets Available to attach to transit gateway
+    Value: !Join
+        - ','
+        - !Ref Subnets
+    Export:
+      Name: !Sub
+        - '${ExportPrefix_}:${AWS::Region}:${AWS::AccountId}:Vpc:Private1Subnets'
+        - ExportPrefix_: !If
+          - HasExportPrefix
+          - !Ref ExportPrefix
+          - 'sct'
   ECSCluster:
     Description: A reference to the ECS cluster
     Value: !Ref ECSCluster
@@ -346,7 +368,6 @@ Outputs:
           - HasExportPrefix
           - !Ref ExportPrefix
           - 'sct'
-
   EcsSecurityGroup:
     Description: A reference to the ECS cluster security group
     Value: !Ref EcsSecurityGroup
@@ -357,7 +378,6 @@ Outputs:
           - HasExportPrefix
           - !Ref ExportPrefix
           - 'sct'
-
   ECSServiceAutoScalingRole:
     Description: A reference to ECS service auto scaling role
     Value: !GetAtt ECSServiceAutoScalingRole.Arn
@@ -368,7 +388,6 @@ Outputs:
           - HasExportPrefix
           - !Ref ExportPrefix
           - 'sct'
-
   ECSAutoScalingGroupName:
     Description: A reference to ECS AutoScaling Group Name
     Value: !Ref ECSAutoScalingGroup
