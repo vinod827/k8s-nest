@@ -1,7 +1,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  ECS service and task definition for ECS Cluster
+  ECS service and task definition
 
 Metadata:
   'AWS::CloudFormation::Interface':
@@ -81,7 +81,7 @@ Parameters:
   DBInstanceClass:
     Description: 'The instance type of database server.'
     Type: String
-    Default: 'db.t3.medium'
+    Default: 'db.t2.micro'
     AllowedValues:
     - 'db.t2.micro'
     - 'db.t3.micro'
@@ -111,9 +111,9 @@ Parameters:
     Description: 'The master password for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot.).'
     Type: String
     NoEcho: true
-    Default: 'tiger@123'
+    Default: 'Simpplr#123'
     AllowedValues:
-    - 'tiger@123'
+    - 'Simpplr#123'
   DBMultiAZ:
     Description: 'Specifies if the database instance is deployed to multiple Availability Zones for HA.'
     Type: String
@@ -143,19 +143,20 @@ Parameters:
   VpcId:
     Description: The VPC that the ECS cluster is deployed to
     Type: AWS::EC2::VPC::Id
+    #AllowedPattern: ".+"
   DesiredCount:
     Description: How many instances of this task should we run across our cluster?
     Type: Number
     Default: 1
   TaskMemory:
-    Description: Desired memory for the task
+    Description: Desired memory for the SonarQube task
     Type: Number
     Default: 2048
     AllowedValues:
     - 1024
     - 2048
   TaskCpu:
-    Description: Desired CPU for the task
+    Description: Desired CPU for the SonarQube task
     Type: Number
     Default: 2048
     AllowedValues:
@@ -165,21 +166,21 @@ Parameters:
     Description: Public Container Image to be pulled and run as container using the ECS Service
     Type: String
   ContainerMemory:
-    Description: Desired memory for the container
+    Description: Desired memory for the SonarQube container
     Type: Number
     Default: 1024
     AllowedValues:
     - 1024
     - 2048
   ContainerCpu:
-    Description: Desired CPU for the container
+    Description: Desired CPU for the SonarQube container
     Type: Number
     Default: 1024
     AllowedValues:
     - 1024
     - 2048
   ContainerEssential:
-    Description: Desired CPU for the container
+    Description: Desired CPU for the SonarQube container
     Type: String
     Default: true
     AllowedValues:
@@ -201,6 +202,13 @@ Parameters:
       Only hyphen (-) separated alphanumeric string is allowed. Should start with a letter.
     MinLength: 3
     MaxLength: 30
+  LoadBalancerType:
+    Description: Type of load balancer 
+    Type: String
+    Default: internal
+    AllowedValues:
+    - internal
+    - internet-facing
 
 # ---------------------------------------------------------------------------- #
 #                                  Conditions                                  #
@@ -507,7 +515,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: EcsApplicationLoadBalancer
-      Scheme: internal
+      Scheme: !Ref LoadBalancerType
       LoadBalancerAttributes:
       - Key: idle_timeout.timeout_seconds
         Value: '30'
@@ -560,7 +568,7 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 7
       HealthyThresholdCount: 5
-  
+
   # A role needed by ECS Agent
   EcsTaskExecutionRole:
     Type: 'AWS::IAM::Role'
