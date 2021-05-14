@@ -1,0 +1,642 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  ECS service and task definition for ECS Cluster
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'Parent Stacks'
+      Parameters:
+      - ParentKmsKeyStack      
+      - ParentAlertStack
+    - Label:
+        default: 'RDS Parameters'
+      Parameters:
+      - DBSnapshotIdentifier
+      - EngineVersion
+      - DBAllocatedStorage
+      - DBInstanceClass
+      - DBName
+      - DBBackupRetentionPeriod
+      - DBMasterUsername
+      - DBMasterUserPassword
+      - DBMultiAZ
+      - DBOptionGroupName
+      - DBParameterGroupName
+      - SubDomainNameWithDot
+      - PreferredBackupWindow
+      - PreferredMaintenanceWindow
+      - EnableIAMDatabaseAuthentication
+    - Label:
+        default: ECS Task & Service Parameters
+      Parameters:
+      - VpcId
+      - DesiredCount
+      - TaskMemory
+      - TaskCpu
+      - ContainerMemory
+      - ContainerCpu
+      - ContainerEssential
+      - Path
+      - ExportPrefix
+      
+
+Parameters:
+  ############################################################################################################
+  #                                      Parameters for 'Parent Stacks'                                      #
+  ############################################################################################################
+  ParentKmsKeyStack:
+    Description: 'Optional Stack name of parent KMS key stack based on security/kms-key.yaml template (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: String
+    Default: ''
+  ParentAlertStack:
+    Description: 'Optional but recommended stack name of parent alert stack'
+    Type: String
+    Default: ''
+  ###########################################################################################################
+  #                                       RDS Parameters                                                    #
+  ###########################################################################################################
+  DBOptionGroupName:
+    Description: 'Optional name of an existing DB option group.'
+    Type: String
+    Default: ''
+  DBParameterGroupName:
+    Description: 'Optional name of an existing DB parameter group.'
+    Type: String
+    Default: ''
+  DBSnapshotIdentifier:
+    Description: 'Optional name or Amazon Resource Name (ARN) of the DB snapshot from which you want to restore (leave blank to create an empty database).'
+    Type: String
+    Default: sonarqube
+    AllowedValues:
+    - sonarqube
+  DBAllocatedStorage:
+    Description: 'The allocated storage size, specified in GB (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: Number
+    Default: 100
+    MinValue: 50
+    MaxValue: 16384
+  DBInstanceClass:
+    Description: 'The instance type of database server.'
+    Type: String
+    Default: 'db.t3.medium'
+    AllowedValues:
+    - 'db.t2.micro'
+    - 'db.t3.micro'
+    - 'db.t3.small'
+    - 'db.t3.medium'
+    - 'db.t3.large'
+  DBName:
+    Description: 'Name of the database (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: String
+    Default: sonarqube
+    AllowedValues:
+    - sonarqube
+  DBBackupRetentionPeriod:
+    Description: 'The number of days to keep snapshots of the database.'
+    Type: Number
+    MinValue: 0
+    MaxValue: 35
+    Default: 30
+  DBMasterUsername:
+    Description: 'The master user name for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: String
+    Default: root
+    AllowedValues:
+    - 'root'
+    - 'master'
+  DBMasterUserPassword:
+    Description: 'The master password for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot.).'
+    Type: String
+    NoEcho: true
+    Default: 'tiger@123'
+    AllowedValues:
+    - 'tiger@123'
+  DBMultiAZ:
+    Description: 'Specifies if the database instance is deployed to multiple Availability Zones for HA.'
+    Type: String
+    Default: false
+    AllowedValues: [true, false]
+  PreferredBackupWindow:
+    Description: 'The daily time range in UTC during which you want to create automated backups.'
+    Type: String
+    Default: '09:54-10:24'
+  PreferredMaintenanceWindow:
+    Description: The weekly time range (in UTC) during which system maintenance can occur.
+    Type: String
+    Default: 'sat:07:00-sat:07:30'
+  EngineVersion:
+    Description: 'PostgreSQL version.'
+    Type: String
+    Default: '13.1'
+    AllowedValues: ['13.1','13.2'] 
+  EnableIAMDatabaseAuthentication:
+    Description: 'Enable mapping of AWS Identity and Access Management (IAM) accounts to database accounts (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html).'
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'false'  
+  ##########################################################################################################
+  #                                      ECS Task & Service Parameters                                     #
+  ##########################################################################################################
+  VpcId:
+    Description: The VPC that the ECS cluster is deployed to
+    Type: AWS::EC2::VPC::Id
+  DesiredCount:
+    Description: How many instances of this task should we run across our cluster?
+    Type: Number
+    Default: 1
+  TaskMemory:
+    Description: Desired memory for the task
+    Type: Number
+    Default: 2048
+    AllowedValues:
+    - 1024
+    - 2048
+  TaskCpu:
+    Description: Desired CPU for the task
+    Type: Number
+    Default: 2048
+    AllowedValues:
+    - 1024
+    - 2048
+  ContainerImageWithTag:
+    Description: Public Container Image to be pulled and run as container using the ECS Service
+    Type: String
+  ContainerMemory:
+    Description: Desired memory for the container
+    Type: Number
+    Default: 1024
+    AllowedValues:
+    - 1024
+    - 2048
+  ContainerCpu:
+    Description: Desired CPU for the container
+    Type: Number
+    Default: 1024
+    AllowedValues:
+    - 1024
+    - 2048
+  ContainerEssential:
+    Description: Desired CPU for the container
+    Type: String
+    Default: true
+    AllowedValues:
+    - true
+    - false  
+  Path:
+    Description: The path to register with the Application Load Balancer
+    Type: String
+    Default: /images/favicon.icon
+  ExportPrefix:
+    Type: String
+    Default: sct
+    Description: >-
+      Prefix for the managed resources and cloudformation exports.
+      Provide it in `namespace-environment` format,
+      where namespace can be product UPI or leave blank for defaults.
+    AllowedPattern: ^[a-z]+(-?[a-z0-9]+)*$
+    ConstraintDescription: >-
+      Only hyphen (-) separated alphanumeric string is allowed. Should start with a letter.
+    MinLength: 3
+    MaxLength: 30
+
+# ---------------------------------------------------------------------------- #
+#                                  Conditions                                  #
+# ---------------------------------------------------------------------------- #
+
+Conditions:
+  HasNVirginiaRegion: !Equals [!Ref 'AWS::Region', 'us-east-1']
+  HasExportPrefix: !Not [!Equals [!Ref ExportPrefix, '']]
+  HasDBSnapshotIdentifier: !Not [!Equals [!Ref DBSnapshotIdentifier, '']]
+  HasDBParameterGroupName: !Not [!Equals [!Ref DBParameterGroupName, '']]
+  HasKmsKey: !Not [!Equals [!Ref ParentKmsKeyStack, '']]
+  HasKmsKeyAndNotDBSnapshotIdentifier: !And [!Condition HasKmsKey, !Not [!Condition HasDBSnapshotIdentifier]]
+  HasDBOptionGroupName: !Not [!Equals [!Ref DBOptionGroupName, '']]
+  HasAlertTopic: !Not [!Equals [!Ref ParentAlertStack, '']]
+  HasVpcImportPath: !Not
+  - !Equals
+    - !Join [
+        '',
+        !Split [':', !Ref VpcId],
+      ]
+    - !Ref VpcId
+  HasVpcRaw: !And [!Not [!Condition HasVpcImportPath], !Not [!Equals [!Ref VpcId, '']], !Not [!Equals [!Ref VpcId, 'None']]]
+  HasVpc: !Or [!Condition HasVpcRaw, !Condition HasVpcImportPath]
+
+# ---------------------------------------------------------------------------- #
+#                                  Resources                                  #
+# ---------------------------------------------------------------------------- #
+
+Resources:
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Ref 'AWS::StackName'
+      VpcId: !If
+        - HasVpcImportPath
+        - Fn::ImportValue: !Sub
+          - ${Vpc_}:${AWS::Region}:${AWS::AccountId}:Vpc:Id
+          - Vpc_: !Select [0, !Split [':', !Ref VpcId]]
+        - !Ref VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 5432
+        ToPort: 5432
+        SourceSecurityGroupId: {'Fn::ImportValue': !Sub 'sct:${AWS::Region}:${AWS::AccountId}:EcsSecurityGroup'}
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: !Ref 'AWS::StackName'
+      SubnetIds: !Split [',', {'Fn::ImportValue': !Sub 'sct:${AWS::Region}:${AWS::AccountId}:Vpc:Private1Subnets'}]
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      AllocatedStorage: !Ref DBAllocatedStorage
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: !Ref DBBackupRetentionPeriod
+      CopyTagsToSnapshot: true
+      DBInstanceClass: !Ref DBInstanceClass
+      DBName: !Ref DBName
+      DBParameterGroupName: !If [HasDBParameterGroupName, !Ref DBParameterGroupName, !Ref 'AWS::NoValue']
+      EnableIAMDatabaseAuthentication: !Ref EnableIAMDatabaseAuthentication
+      Engine: postgres
+      EngineVersion: !If [HasDBSnapshotIdentifier, !Ref 'AWS::NoValue', !Ref EngineVersion]
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      KmsKeyId: !If [HasKmsKeyAndNotDBSnapshotIdentifier, {'Fn::ImportValue': !Sub '${ParentKmsKeyStack}-KeyId'}, !Ref 'AWS::NoValue']
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterUserPassword
+      MultiAZ: !Ref DBMultiAZ
+      OptionGroupName: !If [HasDBOptionGroupName, !Ref DBOptionGroupName, !Ref 'AWS::NoValue']
+      PreferredBackupWindow: !Ref PreferredBackupWindow
+      PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
+      StorageType: gp2
+      StorageEncrypted: !If [HasDBSnapshotIdentifier, !Ref 'AWS::NoValue', !If [HasKmsKey, true, false]]
+      VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+  DatabaseBurstBalanceTooLowAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database storage burst balance over last 10 minutes too low, expect a significant performance drop soon.'
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: BurstBalance
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 20
+  DatabaseCPUUtilizationTooHighAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database CPU utilization over last 10 minutes too high.'
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: CPUUtilization
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 80
+  DatabaseCPUCreditBalanceTooLowAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database CPU credit balance over last 10 minutes too low, expect a significant performance drop soon.'
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: CPUCreditBalance
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 20
+  DatabaseDiskQueueDepthTooHighAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database disk queue depth over last 10 minutes too high, performance may suffer.'
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: DiskQueueDepth
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 64
+  DatabaseFreeableMemoryTooLowAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database freeable memory over last 10 minutes too low, performance may suffer.'
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: FreeableMemory
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 64000000 # 64 Megabyte in Byte
+  DatabaseFreeStorageSpaceTooLowAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database free storage space over last 10 minutes too low.'
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: FreeStorageSpace
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 2000000000 # 2 Gigabyte in Byte
+  DatabaseSwapUsageTooHighAlarm:
+    Condition: HasAlertTopic
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      AlarmDescription: 'Average database swap usage over last 10 minutes too high, performance may suffer.'
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref DBInstance
+      EvaluationPeriods: 1
+      MetricName: SwapUsage
+      Namespace: 'AWS/RDS'
+      OKActions:
+      - {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      Period: 600
+      Statistic: Average
+      Threshold: 256000000 # 256 Megabyte in Byte
+  DatabaseEventSubscription:
+    Condition: HasAlertTopic
+    Type: 'AWS::RDS::EventSubscription'
+    Properties:
+      EventCategories:
+      - failover
+      - failure
+      - 'low storage'
+      - maintenance
+      - 'read replica'
+      - recovery
+      SnsTopicArn: {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}
+      SourceIds: [!Ref DBInstance]
+      SourceType: 'db-instance'
+
+  EcsService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      Cluster: !ImportValue
+                'Fn::Sub': 'sct:${AWS::Region}:${AWS::AccountId}:EcsCluster'
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref EcsTaskDefinition
+      PlacementStrategies:
+      - Type: spread
+        Field: attribute:ecs.availability-zone
+      - Type: spread
+        Field: instanceId
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - {'Fn::ImportValue': !Sub 'sct:${AWS::Region}:${AWS::AccountId}:EcsSecurityGroup'}
+          Subnets: !Split [',', {'Fn::ImportValue': !Sub 'sct:${AWS::Region}:${AWS::AccountId}:Vpc:Private1Subnets'}]
+      LoadBalancers:
+         - ContainerName: "sonarqube"
+           ContainerPort: 9000
+           TargetGroupArn: !Ref TargetGroup
+
+  EcsTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: sonar-task-def
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !Ref EcsTaskExecutionRole
+      TaskRoleArn: !Ref EcsTaskExecutionRole
+      Memory: !Ref TaskMemory
+      Cpu: !Ref TaskCpu
+      Volumes:
+        - Name: sonar-data
+          Host:
+            SourcePath: /opt/sonarqube/data
+        - Name: sonar-extensions
+          Host:
+            SourcePath: /opt/sonarqube/extensions
+      RequiresCompatibilities:
+        - "EC2"
+      ContainerDefinitions:
+        - Name: sonarqube
+          Essential: !Ref ContainerEssential
+          Image: !Ref ContainerImageWithTag
+          Ulimits:
+          -   HardLimit: 65535
+              Name: nofile
+              SoftLimit: 65535
+          Environment:
+           - Name: SONARQUBE_JDBC_PASSWORD
+             Value: !Ref DBMasterUserPassword
+           - Name: SONARQUBE_JDBC_URL
+             Value: !Sub 'jdbc:postgresql://${DBInstance.Endpoint.Address}:${DBInstance.Endpoint.Port}/${DBName}'
+           - Name: SONARQUBE_JDBC_USERNAME
+             Value: !Ref DBMasterUsername
+          MountPoints:
+          - SourceVolume: "sonar-data"
+            ContainerPath: "/opt/sonarqube/data"
+          - SourceVolume: "sonar-extensions"
+            ContainerPath: "/opt/sonarqube/extensions"
+          PortMappings:
+            - ContainerPort: 9000
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: "ecs"
+
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref AWS::StackName
+      RetentionInDays: 365
+
+  EcsApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: EcsApplicationLoadBalancer
+      Scheme: internal
+      LoadBalancerAttributes:
+      - Key: idle_timeout.timeout_seconds
+        Value: '30'
+      Subnets: !Split [',', {'Fn::ImportValue': !Sub 'sct:${AWS::Region}:${AWS::AccountId}:Vpc:Private1Subnets'}]
+      SecurityGroups: [{"Fn::ImportValue" : {"Fn::Sub" : "sct:${AWS::Region}:${AWS::AccountId}:EcsSecurityGroup"}}]
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: 
+    - ServiceRole
+    - DBInstance
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref EcsApplicationLoadBalancer
+      Port: '80'
+      Protocol: HTTP
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: ALBListener
+    Properties:
+      Actions:
+      - Type: forward
+        TargetGroupArn: !Ref TargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - !Ref Path
+      ListenerArn: !Ref 'ALBListener'
+      Priority: 1
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: ip
+      VpcId: !If
+        - HasVpcImportPath
+        - Fn::ImportValue: !Sub
+          - ${Vpc_}:${AWS::Region}:${AWS::AccountId}:Vpc:Id
+          - Vpc_: !Select [0, !Split [':', !Ref VpcId]]
+        - !Ref VpcId
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /images/favicon.icon
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 7
+      HealthyThresholdCount: 5
+  
+  # A role needed by ECS Agent
+  EcsTaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+
+  # This IAM Role grants the service access to register/unregister with the
+  # Application Load Balancer (ALB). It is based on the default documented here:
+  # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/service_IAM_role.html
+  ServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ecs-service-${AWS::StackName}
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: !Sub ecs-service-${AWS::StackName}
+          PolicyDocument:
+            {
+              "Version": "2012-10-17",
+              "Statement":
+                [
+                  {
+                    "Effect": "Allow",
+                    "Action":
+                      [
+                        "ec2:AuthorizeSecurityGroupIngress",
+                        "ec2:Describe*",
+                        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                        "elasticloadbalancing:Describe*",
+                        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                        "elasticloadbalancing:DeregisterTargets",
+                        "elasticloadbalancing:DescribeTargetGroups",
+                        "elasticloadbalancing:DescribeTargetHealth",
+                        "elasticloadbalancing:RegisterTargets"
+                      ],
+                    "Resource": "*"
+                  }
+                ]
+            }
+
+Outputs:
+  EcsApplicationLoadBalancer:
+    Description: Application Load Balancer DNS endpoint
+    Value: !Join ['', [!GetAtt [EcsApplicationLoadBalancer, DNSName]]]
+  Ecstaskdefinition:
+    Description: ECS Task definition
+    Value: !Ref 'EcsTaskDefinition'
+  DNSName:
+    Description: 'The connection endpoint for the database.'
+    Value: !GetAtt 'DBInstance.Endpoint.Address'
+    Export:
+      Name: !Sub '${AWS::StackName}-DNSName'
+  SecurityGroupId:
+    Description: 'The security group used to manage access to RDS Postgres.'
+    Value: !Ref DatabaseSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+  EcsTaskExecutionRole:
+    Description: ECS task execution role
+    Value: !Ref EcsTaskExecutionRole
+    Export:
+      Name: !Sub '${AWS::StackName}-EcsTaskExecutionRole'
