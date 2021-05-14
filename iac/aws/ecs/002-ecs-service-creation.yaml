@@ -163,8 +163,13 @@ Parameters:
     - 1024
     - 2048
   ContainerImageWithTag:
-    Description: Public Container Image to be pulled and run as container using the ECS Service
+    Description: Docker Image tag to be pulled and run as container using the ECS Service
     Type: String
+    Default: sonarqube:latest
+    AllowedValues:
+      - sonarqube:latest
+      - sonarqube:lts-developer
+      - sonarqube:lts-enterprise
   ContainerMemory:
     Description: Desired memory for the SonarQube container
     Type: Number
