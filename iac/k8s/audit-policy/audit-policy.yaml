@@ -1,0 +1,20 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+  # Log the request body of configmap changes in kube-system.
+  - level: Request
+    resources:
+    - group: "" # core API group
+      resources: ["configmaps"]
+    namespaces: ["kube-system"]
+
+  # Log configmap and secret changes in all other namespaces at the Metadata level.
+  - level: Metadata
+    resources:
+    - group: "" # core API group
+      resources: ["secrets", "configmaps"]
+
+  # A catch-all rule to log all other requests at the Metadata level.
+  - level: Metadata
+    omitStages:
+      - "RequestReceived"
