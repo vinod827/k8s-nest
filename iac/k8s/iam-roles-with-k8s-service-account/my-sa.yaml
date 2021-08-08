@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-sa
+  namespace: dev
+  annotations:
+     eks.amazonaws.com/role-arn:  arn:aws:iam::195725532069:role/custom-read-s3-bucket-objects
