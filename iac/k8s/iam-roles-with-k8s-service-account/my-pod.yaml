@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: my-pod
+  name: my-pod
+  namespace: dev
+spec:
+  serviceAccountName: my-sa
+  initContainers:
+  - image: amazon/aws-cli
+    name: my-aws-cli
+    command: ['aws', 's3', 'ls', 's3://k8s-nest/']
+  containers:
+  - image: nginx
+    name: my-pod
+    ports:
+    - containerPort: 80
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
