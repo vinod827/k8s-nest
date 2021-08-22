@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: mydocker
+  name: mydocker
+spec:
+  containers:
+  - image: ghcr.io/vinod827/my-docker:1.0
+    name: mydocker
+    resources: {}
+    ports:
+    - containerPort: 8080
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
