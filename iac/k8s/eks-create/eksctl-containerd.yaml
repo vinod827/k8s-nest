@@ -1,0 +1,16 @@
+--- 
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: containerd-eks
+  region: us-east-1
+  version: "1.21"
+managedNodeGroups:
+  - name: containerd
+    ami: ami-039185a7ec38ba8e5
+    instanceType: t2.micro
+    minSize: 1
+    maxSize: 2
+    overrideBootstrapCommand: |
+      #!/bin/bash
+      /etc/eks/bootstrap.sh containerd-eks --container-runtime containerd
