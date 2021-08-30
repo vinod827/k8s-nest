@@ -13,13 +13,15 @@ spec:
     metadata:
       labels:
         k8s-app: fluentd-cloudwatch
+      annotations:
+        iam.amazonaws.com/role: fluentd  
     spec:
       containers:
       - env:
         - name: AWS_REGION
           value: us-east-1 # Correct AWS EKS region should be verified before running this Daemonset
         - name: AWS_EKS_CLUSTER_NAME
-          value: eks-fargate-alb-demo # AWS EKS Cluster Name should be verified before running this Daemonset
+          value: my-eks # AWS EKS Cluster Name should be verified before running this Daemonset
         image: fluent/fluentd-kubernetes-daemonset:v1.1-debian-cloudwatch
         imagePullPolicy: IfNotPresent
         name: fluentd-cloudwatch
