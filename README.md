@@ -88,3 +88,41 @@ eksctl create iamserviceaccount \
 --approve
 
 
+
+
+# Launch Templates
+
+aws ec2 create-launch-template \
+--launch-template-name myeks-cluster-managednodegroup \
+--version-description "launch templated for creating and managing managed node groups" \
+--launch-template-data '{"InstanceType": "t3.medium","TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"purpose","Value":"eks-nodes"}]}] }'
+
+aws eks create-nodegroup \
+--cluster-name myeks-cluster \ 
+--nodegroup-name myeks-nodegroup \
+--subnets subnet-0d145ab4a17fcb368 subnet-01748f5bafb75e7a8 \
+--node-role 'arn:aws:iam::195725532069:role/node-instance-role' \
+--launch-template name=myeks-cluster-managednodegroup,version=1
+
+aws ec2 create-launch-template-version \
+--launch-template-name myeks-cluster-managednodegroup \
+--version-description "New template version with the addition of key pair and security group allowing SSH access" \
+--source-version 1 \
+--launch-template-data '{ "KeyName":"eks-lt-keypair", "SecurityGroupIds":["sg-0e28306934fe7faeb"] }'
+
+aws eks update-nodegroup-version \
+--cluster-name my-eks-cluster-launch-template-demo \
+--nodegroup-name myeks-nodegroup \
+--launch-template name=myeks-cluster-managednodegroup,version=4
+
+
+aws ec2 create-launch-template-version \
+--launch-template-name myeks-cluster-managednodegroup \
+--version-description "Changing the instance type to t2.xlarge" \
+--source-version 1 \
+--launch-template-data '{ "InstanceType":"t2.xlarge" }'
+
+aws eks update-nodegroup-version \                                                               
+--cluster-name my-eks-cluster-launch-template-demo \
+--nodegroup-name myeks-nodegroup \
+--launch-template name=myeks-cluster-managednodegroup,version=4
