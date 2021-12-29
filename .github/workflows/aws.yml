@@ -9,7 +9,7 @@ on:
   workflow_dispatch:    
 
 env:
-  AWS_REGION: us-east-1       
+  AWS_REGION: ${{ secrets.AWS_REGION }}       
 
 jobs:
   deploy:
@@ -26,8 +26,16 @@ jobs:
       with:
         role-to-assume: arn:aws:iam::195725532069:role/github-actions-role
         role-duration-seconds: 900
-        aws-region: us-east-1
+        aws-region: ${{ secrets.AWS_REGION }}
+      env:
+       AWS_REGION: ${{ secrets.AWS_REGION }}
+       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  
         
     # You can now execute commands that use the credentials👇
     - name: Serverless deploy
       run: sls deploy --stage dev
+      env:
+       AWS_REGION: ${{ secrets.AWS_REGION }}
+       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
