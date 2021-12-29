@@ -30,7 +30,8 @@ jobs:
         
     # You can now execute commands that use the credentials👇
     - name: Serverless deploy
-      run: sls deploy --stage dev
+      #run: sls deploy --stage dev
+      run: echo 'hello'
       env:
        AWS_REGION: ${{ secrets.AWS_REGION }}
        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
