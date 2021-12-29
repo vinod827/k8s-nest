@@ -1,0 +1,415 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS Serverless Application Model app with GitHub Actions
+  Sample application
+
+Globals:
+  Function:
+    Timeout: !Ref DefaultLambdaTimeout # Limit 900 seconds (15 minutes)
+    MemorySize: !Ref DefaultLambdaMemory # Limit 128 MB to 3,008 MB, in 64 MB increments
+
+  Api:
+    Cors:
+      AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,X-Amz-Security-Token,Authorization,X-Api-Key,X-Requested-With,Accept,Access-Control-Allow-Methods,Access-Control-Allow-Origin,Access-Control-Allow-Headers'"
+      AllowOrigin: "'*'"    
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Deployment Environment
+    AllowedValues:
+      - sbx
+      - dev
+      - qa
+      - stage
+      - prod
+  ExportPrefix:
+    Type: String
+    Default: 'myapp'
+    Description: >-
+      Prefix for the managed resources and cloudformation exports.
+      Provide it in `namespace-environment` format,
+      where namespace can be product UPI or leave blank for defaults.
+    AllowedPattern: ^[a-zA-Z]+(-?[a-zA-Z0-9]+)*$
+    ConstraintDescription: >-
+      Only hyphen (-) separated alphanumeric string is allowed. Should start with a letter.
+    MinLength: 3
+    MaxLength: 30
+  BillingMode:
+    AllowedValues:
+    - PAY_PER_REQUEST
+    - PROVISIONED
+    Default: 'PROVISIONED'
+    Description: >-
+      Specify how you are charged for read and write throughput and how you manage capacity.
+      Set to PROVISIONED for predictable workloads and PAY_PER_REQUEST for unpredictable workloads.
+      PAY_PER_REQUEST sets the billing mode to On-Demand Mode
+    Type: String
+  DefaultLambdaTimeout:
+    Default: 3
+    MinValue: 3
+    MaxValue: 900
+    Description: >-
+      The amount of time that Lambda allows a function to run before stopping it.
+      The default is 3 seconds.
+      The maximum allowed value is 900 seconds.
+    Type: Number
+  DefaultLambdaMemory:
+    Default: 128
+    MinValue: 128
+    MaxValue: 3008
+    Description: >-
+      The amount of memory that your function has access to.
+      Increasing the function's memory also increases its CPU allocation.
+      The default value is 128 MB. The value must be a multiple of 64 MB.
+    Type: Number
+  TTLAttribute:
+    Default: None
+    Description: >-
+      Attribute name for time to live. Provide None or leave blank for if not required.
+    Type: String
+  CDNHostedZoneId:
+    Default: 'Z2FDTNDATAQYW2'
+    Description: >-
+      CloudFront hosted zone id. 
+      Always Static Value. 
+      Refer AWS Documentation here
+      https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-route53-aliastarget.html#cfn-route53-aliastarget-hostedzoneid
+    Type: String
+  DomainName:
+    Default: 'acloudtiger.com'
+    Description: >-
+      Registered domain name with Top Level Domain as .com
+    Type: String
+
+
+# ---------------------------------------------------------------------------- #
+#                                   Mappings                                   #
+# ---------------------------------------------------------------------------- #
+
+Mappings:
+  Environment:
+    FullForm:
+      sbx: sandbox
+      dev: development
+      stage: staging
+      qa: qa
+      prod: production
+
+
+
+# ---------------------------------------------------------------------------- #
+#                                  Conditions                                  #
+# ---------------------------------------------------------------------------- #
+
+Conditions:
+  HasExportPrefix: !Not [!Equals [!Ref ExportPrefix, '']]
+  HasNoTTLAttribute: !Or [!Equals [!Ref TTLAttribute, ''], !Equals [!Ref TTLAttribute, 'None']]
+  HasTTLAttribute: !Not [!Condition HasNoTTLAttribute]
+
+# ---------------------------------------------------------------------------- #
+#                                  Resources                                   #
+# ---------------------------------------------------------------------------- #
+
+Resources:
+# ---------------------------------------------------------------------------- #
+#  MyApp Lambda Execution Role for reading writing to DynamoDB, CloudWatch, etc #
+# ---------------------------------------------------------------------------- #
+  MyAppLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+        Version: 2012-10-17
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: !Sub
+          - "${ExportPrefix_}MyAppGetLambdaPolicy"
+          - ExportPrefix_: !If
+            - HasExportPrefix
+            - !Join ['-', [!Ref ExportPrefix, !Ref Environment, '']]
+            - !Join ['-', [!Select [0, !Split ["-", !Ref "AWS::StackName"]], !Ref Environment, '']]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: MyAppLambdaExecutionAndXRayTracing
+                Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - dynamodb:UpdateItem
+                  - dynamodb:ConditionCheckItem
+                  - dynamodb:Scan
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DescribeTable
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                  - dynamodb:DeleteItem
+                  - s3:*
+                  - lambda:*
+                Resource: "*"
+
+# ---------------------------------------------------------------------------- #
+#                          MyApp Lambda Function                                #
+# ---------------------------------------------------------------------------- #
+  MyAppFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: my-app/
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      MemorySize: !Ref DefaultLambdaMemory
+      Timeout: !Ref DefaultLambdaTimeout
+      Role: !GetAtt MyAppLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          RUNTIME_DDB_TABLE_NAME: !Ref DynamoDBTable
+      Architectures:
+        - x86_64
+      Events:
+        MyApp:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: get           
+
+
+# ---------------------------------------------------------------------------- #
+#                                  DynamoDB Table                              #
+# ---------------------------------------------------------------------------- #
+  DynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties: 
+        AttributeDefinitions: 
+          - AttributeName: id
+            AttributeType: S
+        KeySchema: 
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput: 
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        Tags: # Optional
+          - Key: Namespace
+            Value: '@MyApp'
+          - Key: Name
+            Value: !Sub
+            - '${ExportPrefix_}DynamoDBTable'
+            - ExportPrefix_: !If
+              - HasExportPrefix
+              - !Join ['-', [!Ref ExportPrefix, !Ref Environment, '']]
+              - !Join ['-', [!Select [0, !Split ["-", !Ref "AWS::StackName"]], !Ref Environment, '']]
+          - Key: Environment
+            Value: !FindInMap [Environment, FullForm, !Ref Environment]
+        TimeToLiveSpecification: !If
+          - HasTTLAttribute
+          - AttributeName: !Ref TTLAttribute
+            Enabled: true
+          - !Ref 'AWS::NoValue'
+
+# ---------------------------------------------------------------------------- #
+#             S3 bucket for static website hosting                             #
+# ---------------------------------------------------------------------------- #
+  FEStaticWebsiteS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: acloudtiger.com
+      Tags: # Optional
+          - Key: Namespace
+            Value: '@MyApp'
+          - Key: Name
+            Value: !Sub
+            - '${ExportPrefix_}FEStaticWebsiteS3Bucket'
+            - ExportPrefix_: !If
+              - HasExportPrefix
+              - !Join ['-', [!Ref ExportPrefix, !Ref Environment, '']]
+              - !Join ['-', [!Select [0, !Split ["-", !Ref "AWS::StackName"]], !Ref Environment, '']]
+          - Key: Environment
+            Value: !FindInMap [Environment, FullForm, !Ref Environment]
+
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FEStaticWebsiteS3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: 's3:GetObject'
+            Resource:
+              - !Sub "arn:aws:s3:::${FEStaticWebsiteS3Bucket}/*"
+            Principal:              
+              AWS: !Sub "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${MyCDNOAI}"
+
+
+# ---------------------------------------------------------------------------- #
+#                                  CDN and its distribution                    #
+# ---------------------------------------------------------------------------- #
+  MyCDNOAI:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'Serverless website OA'
+
+  MyCDN:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      Tags: # Optional
+          - Key: Namespace
+            Value: '@MyApp'
+          - Key: Name
+            Value: !Sub
+            - '${ExportPrefix_}MyCDN'
+            - ExportPrefix_: !If
+              - HasExportPrefix
+              - !Join ['-', [!Ref ExportPrefix, !Ref Environment, '']]
+              - !Join ['-', [!Select [0, !Split ["-", !Ref "AWS::StackName"]], !Ref Environment, '']]
+          - Key: Environment
+            Value: !FindInMap [Environment, FullForm, !Ref Environment]
+      DistributionConfig:
+        Comment: "CDN configuration for s3 static website"
+        ViewerCertificate:
+          AcmCertificateArn: arn:aws:acm:us-east-1:195725532069:certificate/742155d5-0040-4a85-a24d-ac248d93324e #Cert for my personal domain acloudtiger.com
+          MinimumProtocolVersion: TLSv1.1_2016
+          SslSupportMethod: sni-only
+        DefaultRootObject: 'index.html'
+        Aliases:
+          - !Ref DomainName
+          #- !Sub '*.${DomainName}'
+          - !Sub 'www.${DomainName}'
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - Id: my-s3-static-website
+            DomainName: !GetAtt FEStaticWebsiteS3Bucket.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: 
+                Fn::Sub: 'origin-access-identity/cloudfront/${MyCDNOAI}'
+        DefaultCacheBehavior:
+          Compress: 'true'
+          AllowedMethods: 
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+          CachedMethods: 
+            - GET
+            - HEAD
+            - OPTIONS
+          ForwardedValues:
+            QueryString: false
+          TargetOriginId: my-s3-static-website
+          ViewerProtocolPolicy : redirect-to-https
+
+# ---------------------------------------------------------------------------- #
+#                            Zone file for TLD - Public Hosted Zone            #
+# ---------------------------------------------------------------------------- #
+
+  # PublicHostedZoneForZoneFile:
+  #   Type: AWS::Route53::HostedZone
+  #   Properties: 
+  #     HostedZoneConfig: 
+  #       Comment: Hosted zone acloudtiger.com
+  #     Name: !Ref DomainName
+
+# ---------------------------------------------------------------------------- #
+#                            Record sets for Public Hosted Zone                #
+# ---------------------------------------------------------------------------- #
+  # DNSAliasRecordForIPV4:
+  #   Type: AWS::Route53::RecordSet
+  #   DependsOn: MyCDN
+  #   Properties:
+  #     HostedZoneId: !Ref PublicHostedZoneForZoneFile
+  #     Name: !Ref DomainName
+  #     Type: A
+  #     AliasTarget:
+  #       DNSName: !GetAtt MyCDN.DomainName
+  #       HostedZoneId: !Ref CDNHostedZoneId
+
+  # DNSAliasRecordForIPV6:
+  #   Type: AWS::Route53::RecordSet
+  #   DependsOn: MyCDN
+  #   Properties:
+  #     HostedZoneId: !Ref PublicHostedZoneForZoneFile
+  #     Name: !Ref DomainName
+  #     Type: AAAA
+  #     AliasTarget:
+  #       DNSName: !GetAtt MyCDN.DomainName
+  #       HostedZoneId: !Ref CDNHostedZoneId
+
+  # DNSIP4RecordForMyApp:
+  #   Type: AWS::Route53::RecordSet
+  #   DependsOn: MyCDN
+  #   Properties:
+  #     HostedZoneId: !Ref PublicHostedZoneForZoneFile
+  #     Name: www.acloudtiger.com
+  #     Type: A
+  #     AliasTarget:
+  #       DNSName: !GetAtt MyCDN.DomainName
+  #       HostedZoneId: !Ref CDNHostedZoneId
+
+  # DNSIPV6RecordForMyApp:
+  #   Type: AWS::Route53::RecordSet
+  #   DependsOn: MyCDN
+  #   Properties:
+  #     HostedZoneId: !Ref PublicHostedZoneForZoneFile
+  #     Name: www.acloudtiger.com
+  #     Type: AAAA
+  #     AliasTarget:
+  #       DNSName: !GetAtt MyCDN.DomainName
+  #       HostedZoneId: !Ref CDNHostedZoneId  
+
+# ---------------------------------------------------------------------------- #
+#                          Outputs                                             #
+# ---------------------------------------------------------------------------- #
+Outputs:
+  MyAppApi:
+    Description: "API Gateway endpoint URL for Prod stage for this function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  
+  MyAppFunction:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt MyAppFunction.Arn
+
+  # MyAppFunctionIamRole:
+  #   Description: "Implicit IAM Role created for function"
+  #   Value: !GetAtt MyAppFunctionRole.Arn
+
+  DynamoDBTable:
+    Description: Dynamodb table
+    Export:
+      Name: !Sub
+        - ${ExportPrefix_}:${AWS::Region}:myapp:DynamoDBTable
+        - ExportPrefix_: !If
+          - HasExportPrefix
+          - !Join ['-', [!Ref ExportPrefix, !Ref Environment]]
+          - !Join ['-', [!Select [0, !Split ["-", !Ref "AWS::StackName"]], !Ref Environment]]
+    Value: !Ref DynamoDBTable
+  
+  DynamoDBTableArn:
+    Description: Dynamodb table Arn
+    Export:
+      Name: !Sub
+        - ${ExportPrefix_}:${AWS::Region}:myapp:DynamoDBTable:Arn
+        - ExportPrefix_: !If
+          - HasExportPrefix
+          - !Join ['-', [!Ref ExportPrefix, !Ref Environment]]
+          - !Join ['-', [!Select [0, !Split ["-", !Ref "AWS::StackName"]], !Ref Environment]]
+    Value: !GetAtt DynamoDBTable.Arn
