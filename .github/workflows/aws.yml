@@ -1,9 +1,12 @@
-name: Deploy Serverless app
+name: Deploy Serverless app to AWS
 
 on:
   push:
     branches:
       - main
+  
+  # To trigger the build manually
+  workflow_dispatch:    
 
 env:
   AWS_REGION: us-east-1       
