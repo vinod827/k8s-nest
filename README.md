@@ -3,9 +3,8 @@
 
 ### Hi there 👋
 
-<!--
-**k8s-nest** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
+**k8s-nest** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 Here are some ideas to get you started:
 
 - 🔭 I’m currently working on Kubernetes Project
@@ -16,7 +15,7 @@ Here are some ideas to get you started:
 - 📫 How to reach me: vinod827@gmail.com
 - 😄 Pronouns: 
 - ⚡ Fun fact: Life is beautiful, live each day
--->
+
 
 
 
