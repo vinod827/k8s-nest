@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: fake-traffic
+  name: fake-traffic
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fake-traffic
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: fake-traffic
+    spec:
+      containers:
+      - image: busybox
+        name: test
+        command: ["/bin/sh"]
+        args: ["-c", "while true; do wget -0 /dev/null -o /dev/null http://nginx; sleep 300; done"]
+status: {}
