@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+ name: nginx-conf
+data:
+ status.conf: |
+   server {
+      listen 81;
+      location /nginx_status {
+        stub_status on;
+      }
+   }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        ad.datadoghq.com/nginx.check_names: '["nginx"]'
+        ad.datadoghq.com/nginx.init_configs: '[{}]'
+        ad.datadoghq.com/nginx.instances: |
+         [
+           {
+             "nginx_status_url":"http://%%host%%:81/nginx_status/"
+           }
+         ]
+      labels:
+        app: nginx
+      name: nginx  
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        ports:
+        - containerPort: 80
+        - containerPort: 81
+        volumeMounts:
+        - mountPath: /etc/nginx/conf.d/status.conf
+          subPath: status.conf
+          readOnly: true
+          name: "config"
+      volumes:
+      - name: "config"
+        configMap:
+          name: "nginx-conf"    
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: nginx
+  name: nginx
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80  
+
+
+
+
+

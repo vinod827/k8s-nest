@@ -1,0 +1,18 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: datadog-scaledobject  
+spec:
+  scaleTargetRef:
+    name: nginx
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 5  
+  triggers:
+  - type: datadog
+    metadata:
+      query: "avg:nginx.net.request_per_s{kube_deployment:nginx}"
+      queryValue: "2"
+      age: "60"
+    authenticationRef:
+      name: keda-trigger-auth-datadog-secret
