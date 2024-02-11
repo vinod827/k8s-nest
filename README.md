@@ -8,18 +8,17 @@ All k8s manifests lives here
 
 Creating AWS EKS version 1.21 with containerd as CRI:-
 
+```
 EKS_VERSION=1.21
-
 AMI_ID=$(aws ssm get-parameter \
     --name /aws/service/eks/optimized-ami/${EKS_VERSION}/amazon-linux-2/recommended/image_id \
     --query "Parameter.Value" --output text)
-
 AWS_REGION=${AWS_DEFAULT_REGION:-us-east-1}
-
 CLUSTER_NAME=containerd-eks
+```
+cat > eksctl-containerd.yaml
 
-cat > eksctl-containerd.yaml <<EOF
---- 
+```
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 metadata:
@@ -32,39 +31,38 @@ managedNodeGroups:
     overrideBootstrapCommand: |
       #!/bin/bash
       /etc/eks/bootstrap.sh ${CLUSTER_NAME} --container-runtime containerd
-EOF
-
+```
+```
 eksctl create cluster -f eksctl-containerd.yaml
-
 eksctl delete nodegroup --cluster=containerd-eks --name=containerd
-
 eksctl create nodegroup --cluster=containerd-eks --spot --instance-types=t3.medium
-
+```
+```
 eksctl utils associate-iam-oidc-provider \
     --region us-east-1 \
     --cluster containerd-eks \
     --approve
-
-
+```
+```
 eksctl create fargateprofile \
     --cluster containerd-eks \
     --name containerd-fp \
     --namespace game-2048
-
-
+```
+```
 kubectl annotate serviceaccount -n kube-system alb-ingress-controller \
 eks.amazonaws.com/role-arn=arn:aws:iam::195725532069:role/eks-alb-ingress-controller
-
-
+```
+```
 eksctl create iamserviceaccount \
                 --name my-serviceaccount \
                 --namespace kube-system \
                 --cluster containerd-eks \
                 --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
                 --approve
-
+```
              
-
+```
 CLUSTER_NAME=eks-fargate-alb-demo
 
 eksctl create cluster --name eks-fargate-alb-demo --region us-east-1 --fargate
@@ -81,12 +79,12 @@ eksctl create iamserviceaccount \
 --cluster $CLUSTER_NAME \
 --attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/ALBIngressControllerIAMPolicy \
 --approve
-
+```
 
 
 
 # Launch Templates
-
+```
 aws ec2 create-launch-template \
 --launch-template-name myeks-cluster-managednodegroup \
 --version-description "launch templated for creating and managing managed node groups" \
@@ -110,13 +108,12 @@ aws eks update-nodegroup-version \
 --nodegroup-name myeks-nodegroup \
 --launch-template name=myeks-cluster-managednodegroup,version=4
 
-
 aws ec2 create-launch-template-version \
 --launch-template-name myeks-cluster-managednodegroup \
 --version-description "Changing the instance type to t2.xlarge" \
 --source-version 1 \
 --launch-template-data '{ "InstanceType":"t2.xlarge" }'
-
+```
 aws eks update-nodegroup-version \                                                               
 --cluster-name my-eks-cluster-launch-template-demo \
 --nodegroup-name myeks-nodegroup \
