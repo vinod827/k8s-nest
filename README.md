@@ -1,34 +1,10 @@
 
-
-
-### Hi there 👋
-
-
-**k8s-nest** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on Kubernetes Project
-- 🌱 I’m currently learning Cloud Computing even though I have done multiple certifications, the technology keeps evolving and we should keep myself updated
-- 👯 I’m looking to collaborate on this project
-- 🤔 I’m looking for help with more IaC (Infrastructure as Code) for the vast open source community
-- 💬 Ask me about AWS, Google Cloud Platform, JavaScript/NodeJS, Docker, Kubernetes, Java, ReactJS, Security best practices
-- 📫 How to reach me: vinod827@gmail.com
-- 😄 Pronouns: 
-- ⚡ Fun fact: Life is beautiful, live each day
-
-
-
-
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/d6a38ef88cf741f6a350e1fedf59311c)](https://app.codacy.com/gh/vinod827/k8s-nest?utm_source=github.com&utm_medium=referral&utm_content=vinod827/k8s-nest&utm_campaign=Badge_Grade_Settings)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/665c8926c3374c3bb8c19f6932e5eee2)](https://app.codacy.com/gh/vinod827/k8s-nest?utm_source=github.com&utm_medium=referral&utm_content=vinod827/k8s-nest&utm_campaign=Badge_Grade_Settings)
 
 All k8s manifests lives here
 
-
 1) ECS Cluster with Service, Task definitions and Load Balancers
-
-
-
 
 Creating AWS EKS version 1.21 with containerd as CRI:-
 
