@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda-demo
+spec: {}
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-app-keda
+  name: my-app-keda
+  namespace: keda-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app-keda
+  template:
+    metadata:
+      labels:
+        app: my-app-keda
+    spec:
+      serviceAccountName: keda-operator
+      containers:
+      - image: vinod827/keda-demo:1.0.0
+        name: my-app-keda
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m" # request 100 milliCPU (0.1 CPU)
+            memory: "128Mi" # request 128 Mebibytes of memory
+          limits:
+            cpu: "200m" # limit to 200 milliCPU (0.2 CPU)
+            memory: "256Mi" # limit to 256 Mebibytes of memory
+
