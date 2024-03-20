@@ -1,0 +1,31 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: my-app-keda-scaledobject
+  namespace: keda-demo
+spec:
+  scaleTargetRef:
+    name: my-app-keda
+    kind: Deployment
+  pollingInterval: 5  # Optional: Set the polling interval for the scaler in seconds
+  cooldownPeriod: 20   # Optional: Set the cooldown period for the scaler in seconds
+  minReplicaCount: 0   # Set the minimum number of replicas
+  maxReplicaCount: 10  # Set the maximum number of replicas
+  triggers:
+  - type: aws-sqs-queue
+    authenticationRef:
+      name: keda-trigger-auth-aws
+    metadata:
+      queueURL: https://sqs.us-east-1.amazonaws.com/458419607076/MySQSQueue-ForKEDA-Demo
+      queueLength: "5"              # batch size
+      awsRegion: us-east-1       
+      identityOwner: pod # Default is Pod but can be operator as well. DEPRECATED: This parameter is deprecated as of KEDA v2.13 and will be removed in v3.
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-trigger-auth-aws
+  namespace: keda-demo
+spec:
+  podIdentity:
+    provider: aws-kiam # or aws-eks
