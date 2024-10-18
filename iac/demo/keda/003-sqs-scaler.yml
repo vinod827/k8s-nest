@@ -1,0 +1,52 @@
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: test-secrets
+# data:
+#   AWS_ACCESS_KEY_ID: <encoded-user-id> # Required.
+#   AWS_SECRET_ACCESS_KEY: <encoded-key> # Required.
+#   AWS_SESSION_TOKEN: <encoded-session-token> # Required when using temporary credentials.
+# ---
+# apiVersion: keda.sh/v1alpha1
+# kind: TriggerAuthentication
+# metadata:
+#   name: keda-trigger-auth-aws-credentials
+#   namespace: keda-test
+# spec:
+#   secretTargetRef:
+#   - parameter: awsAccessKeyID     # Required.
+#     name: test-secrets            # Required.
+#     key: AWS_ACCESS_KEY_ID        # Required.
+#   - parameter: awsSecretAccessKey # Required.
+#     name: test-secrets            # Required.
+#     key: AWS_SECRET_ACCESS_KEY    # Required.
+#   - parameter: awsSessionToken    # Required when using temporary credentials.
+#     name: test-secrets            # Required when using temporary credentials.
+#     key: AWS_SESSION_TOKEN        # Required when using temporary credentials.
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: aws-sqs-queue-scaledobject
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: my-nginx
+  pollingInterval: 5 #Interval for polling
+  cooldownPeriod: 10
+  idleReplicaCount: 0 # When idle, scale-in to 0 pods
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  fallback: # Fallback strategy when metrics are unavailable for the apps
+    failureThreshold: 5 #when metrics are unavailable, match the desired state of replicas -> 2
+    replicas: 2 #Keep this desired state when metrics are unavailable
+  triggers:
+  - type: aws-sqs-queue
+    authenticationRef:
+      name: keda-trigger-auth-aws-credentials
+    metadata:
+      queueURL: https://sqs.us-east-2.amazonaws.com/711164302624/my-sqs-keda
+      queueLength: "5" #batch size
+      awsRegion: "us-east-2"
+      #identityOwner: pod
+      identityOwner: operator #when node role has required permission

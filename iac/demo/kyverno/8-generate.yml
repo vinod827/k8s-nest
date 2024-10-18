@@ -1,0 +1,19 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-configmap
+spec:
+  rules:
+    - name: generate-default-configmap
+      match:
+        resources:
+          kinds:
+            - Namespace
+      generate:
+        kind: ConfigMap
+        name: default-config
+        namespace: "{{ request.object.metadata.name }}"
+        synchronize: true
+        data:
+          data:
+            configKey: "configValue"

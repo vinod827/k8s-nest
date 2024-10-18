@@ -1,0 +1,17 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-app-label
+spec:
+  rules:
+    - name: add-app-label-to-pods-deployment
+      match:
+        resources:
+          kinds:
+            - Pod
+            - Deployment
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              company: "mycompany"  # Adds this label if not provided
