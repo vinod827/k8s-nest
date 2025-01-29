@@ -13,5 +13,7 @@ spec:
       mutate:
         patchStrategicMerge:
           metadata:
-            labels:
-              company: "mycompany"  # Adds this label if not provided
+            labels: # Adds these labels if not provided
+              company: "mycompany"  
+              app: "Observability"
+              cost: "shared-infra"

@@ -3,3 +3,6 @@
 webapp/node_modules/
 webapp/package-lock.json
 iac/aws/terraform/creating-custom-vpc/.terraform/
+iac/demo/textract/.terraform.lock.hcl
+iac/demo/textract/.terraform/*
+
