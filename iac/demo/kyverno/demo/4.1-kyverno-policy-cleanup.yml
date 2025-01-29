@@ -1,7 +1,8 @@
 apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+kind: Policy
 metadata:
   name: cleanup-completed-jobs
+  namespace: development
 spec:
   rules:
     - name: cleanup-jobs
@@ -9,12 +10,7 @@ spec:
         resources:
           kinds:
             - Job
-      preconditions:
-        all:
-          - key: "{{ request.operation }}"
-            operator: In
-            value: ["DELETE"]
       mutate:
         patchStrategicMerge:
           spec:
-            ttlSecondsAfterFinished: 86400 # Clean up after 24 hours
+            ttlSecondsAfterFinished: 60

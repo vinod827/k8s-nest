@@ -1,0 +1,21 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: enforce-image-source
+  namespace: development
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: validate-image-source
+      match:
+        resources:
+          kinds:
+            - Deployment
+      validate:
+        message: "Only images from the Docker Hub account vinod827/ are allowed."
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - image: "vinod827/*"

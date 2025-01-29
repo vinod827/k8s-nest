@@ -1,0 +1,23 @@
+apiVersion: kyverno.io/v2beta1
+kind: Policy
+metadata:
+  name: cleanup-completed-jobs
+  namespace: development
+spec:
+  rules:
+    - name: cleanup-jobs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Job
+              namespaces:
+                - development
+      exclude:
+        any:
+          - resources:
+              statuses:
+                - "!Succeeded"
+                - "!Failed"  # Exclude active Jobs
+      cleanup:
+        ttl: 60s  # Delete Jobs 1 minute after completion
