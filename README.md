@@ -2,119 +2,63 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/d6a38ef88cf741f6a350e1fedf59311c)](https://app.codacy.com/gh/vinod827/k8s-nest?utm_source=github.com&utm_medium=referral&utm_content=vinod827/k8s-nest&utm_campaign=Badge_Grade_Settings)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/665c8926c3374c3bb8c19f6932e5eee2)](https://app.codacy.com/gh/vinod827/k8s-nest?utm_source=github.com&utm_medium=referral&utm_content=vinod827/k8s-nest&utm_campaign=Badge_Grade_Settings)
 
-All k8s manifests lives here
+# k8s-nest
 
-1) ECS Cluster with Service, Task definitions and Load Balancers
+## Overview
+`k8s-nest` is a collection of Kubernetes configurations, Infrastructure as Code (IaC) templates, and deployment strategies designed to simplify cloud-native application management. It includes Helm charts, KEDA-based autoscaling, CI/CD configurations, and other resources to help developers and DevOps engineers manage Kubernetes workloads efficiently.
 
-Creating AWS EKS version 1.21 with containerd as CRI:-
+## Features
+- **KEDA-based Autoscaling**: Implement event-driven auto-scaling for Kubernetes workloads.
+- **Helm Charts**: Predefined Helm charts for Kubernetes applications.
+- **CI/CD Pipelines**: GitHub Actions workflows for automated deployments.
+- **Infrastructure as Code (IaC)**: Terraform and Kubernetes YAML manifests for easy provisioning.
+- **Security Policies**: Kyverno policies for Kubernetes governance.
 
-```
-EKS_VERSION=1.21
-AMI_ID=$(aws ssm get-parameter \
-    --name /aws/service/eks/optimized-ami/${EKS_VERSION}/amazon-linux-2/recommended/image_id \
-    --query "Parameter.Value" --output text)
-AWS_REGION=${AWS_DEFAULT_REGION:-us-east-1}
-CLUSTER_NAME=containerd-eks
-```
-cat > eksctl-containerd.yaml
-
-```
-apiVersion: eksctl.io/v1alpha5
-kind: ClusterConfig
-metadata:
-  name: ${CLUSTER_NAME}
-  region: ${AWS_REGION}
-  version: "${EKS_VERSION}"
-managedNodeGroups:
-  - name: containerd
-    ami: ${AMI_ID}
-    overrideBootstrapCommand: |
-      #!/bin/bash
-      /etc/eks/bootstrap.sh ${CLUSTER_NAME} --container-runtime containerd
-```
-```
-eksctl create cluster -f eksctl-containerd.yaml
-eksctl delete nodegroup --cluster=containerd-eks --name=containerd
-eksctl create nodegroup --cluster=containerd-eks --spot --instance-types=t3.medium
-```
-```
-eksctl utils associate-iam-oidc-provider \
-    --region us-east-1 \
-    --cluster containerd-eks \
-    --approve
-```
-```
-eksctl create fargateprofile \
-    --cluster containerd-eks \
-    --name containerd-fp \
-    --namespace game-2048
-```
-```
-kubectl annotate serviceaccount -n kube-system alb-ingress-controller \
-eks.amazonaws.com/role-arn=arn:aws:iam::195725532069:role/eks-alb-ingress-controller
-```
-```
-eksctl create iamserviceaccount \
-                --name my-serviceaccount \
-                --namespace kube-system \
-                --cluster containerd-eks \
-                --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
-                --approve
-```
-             
-```
-CLUSTER_NAME=eks-fargate-alb-demo
-
-eksctl create cluster --name eks-fargate-alb-demo --region us-east-1 --fargate
-
-eksctl utils associate-iam-oidc-provider --cluster eks-fargate-alb-demo --approve
-
-STACK_NAME=eksctl-eks-fargate-alb-demo-cluster
-VPC_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" | jq -r '[.Stacks[0].Outputs[] | {key: .OutputKey, value: .OutputValue}] | from_entries' | jq -r '.VPC')
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
-
-eksctl create iamserviceaccount \
---name alb-ingress-controller \
---namespace kube-system \
---cluster $CLUSTER_NAME \
---attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/ALBIngressControllerIAMPolicy \
---approve
+## Repository Structure
+```plaintext
+k8s-nest/
+│-- .github/workflows/     # CI/CD workflows for GitHub Actions
+│-- iac/                   # Infrastructure as Code resources
+│   ├── k8s/               # Kubernetes-specific configurations
+│   ├── terraform/         # Terraform modules
+│-- webapp/                # Sample application for deployment
+│-- Dockerfile             # Containerization setup
+│-- allow.yaml             # Security policy example
+│-- disallow.yaml          # Security restriction policy
 ```
 
+## Getting Started
+### Prerequisites
+- Kubernetes Cluster (Minikube, EKS, GKE, etc.)
+- Helm
+- kubectl
+- Terraform (optional for IaC deployments)
 
+### Installation
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/vinod827/k8s-nest.git
+   cd k8s-nest
+   ```
+2. Deploy using Helm:
+   ```sh
+   helm install my-app ./helm-chart
+   ```
+3. Apply Kubernetes manifests manually:
+   ```sh
+   kubectl apply -f iac/k8s/
+   ```
 
-# Launch Templates
-```
-aws ec2 create-launch-template \
---launch-template-name myeks-cluster-managednodegroup \
---version-description "launch templated for creating and managing managed node groups" \
---launch-template-data '{"InstanceType": "t3.medium","TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"purpose","Value":"eks-nodes"}]}] }'
+## Contributing
+Contributions are welcome! Please submit a pull request or create an issue for discussions.
 
-aws eks create-nodegroup \
---cluster-name myeks-cluster \ 
---nodegroup-name myeks-nodegroup \
---subnets subnet-0d145ab4a17fcb368 subnet-01748f5bafb75e7a8 \
---node-role 'arn:aws:iam::195725532069:role/node-instance-role' \
---launch-template name=myeks-cluster-managednodegroup,version=1
+## License
+This project is licensed under the MIT License.
 
-aws ec2 create-launch-template-version \
---launch-template-name myeks-cluster-managednodegroup \
---version-description "New template version with the addition of key pair and security group allowing SSH access" \
---source-version 1 \
---launch-template-data '{ "KeyName":"eks-lt-keypair", "SecurityGroupIds":["sg-0e28306934fe7faeb"] }'
+---
 
-aws eks update-nodegroup-version \
---cluster-name my-eks-cluster-launch-template-demo \
---nodegroup-name myeks-nodegroup \
---launch-template name=myeks-cluster-managednodegroup,version=4
+### Author
+**Vinod Kumar Nair**  
+📧 vinod827@gmail.com  
+📍 [GitHub](https://github.com/vinod827)  
 
-aws ec2 create-launch-template-version \
---launch-template-name myeks-cluster-managednodegroup \
---version-description "Changing the instance type to t2.xlarge" \
---source-version 1 \
---launch-template-data '{ "InstanceType":"t2.xlarge" }'
-```
-aws eks update-nodegroup-version \                                                               
---cluster-name my-eks-cluster-launch-template-demo \
---nodegroup-name myeks-nodegroup \
---launch-template name=myeks-cluster-managednodegroup,version=4
