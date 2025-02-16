@@ -1,11 +1,11 @@
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d6a38ef88cf741f6a350e1fedf59311c)](https://app.codacy.com/gh/vinod827/k8s-nest?utm_source=github.com&utm_medium=referral&utm_content=vinod827/k8s-nest&utm_campaign=Badge_Grade_Settings)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/665c8926c3374c3bb8c19f6932e5eee2)](https://app.codacy.com/gh/vinod827/k8s-nest?utm_source=github.com&utm_medium=referral&utm_content=vinod827/k8s-nest&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d6a38ef88cf741f6a350e1fedf59311c)](https://app.codacy.com/gh/vinod827/cloudkit-lab?utm_source=github.com&utm_medium=referral&utm_content=vinod827/cloudkit-lab&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/665c8926c3374c3bb8c19f6932e5eee2)](https://app.codacy.com/gh/vinod827/cloudkit-lab?utm_source=github.com&utm_medium=referral&utm_content=vinod827/cloudkit-lab&utm_campaign=Badge_Grade_Settings)
 
-# k8s-nest 🐳🚀 
+# cloudkit-lab 🐳🚀 
 
 ## 🚀 Overview
-`k8s-nest` is a collection of Kubernetes configurations, Infrastructure as Code (IaC) templates, and deployment strategies designed to simplify cloud-native application management. It includes Helm charts, KEDA-based autoscaling, CI/CD configurations, and other resources to help developers and DevOps engineers manage Kubernetes workloads efficiently.
+`cloudkit-lab` is a collection of Kubernetes configurations, Infrastructure as Code (IaC) templates, and deployment strategies designed to simplify cloud-native application management. It includes Helm charts, KEDA-based autoscaling, CI/CD configurations, and other resources to help developers and DevOps engineers manage Kubernetes workloads efficiently.
 
 ## 📌 Features  
 - ⚙️ **Kubernetes manifests** for various workloads.  
@@ -19,7 +19,7 @@
 
 ## 📁 Repository Structure
 ```plaintext
-k8s-nest/
+cloudkit-lab/
 │-- .github/workflows/     # CI/CD workflows for GitHub Actions
 │-- iac/                   # Infrastructure as Code resources
 │   ├── k8s/               # Kubernetes-specific configurations
@@ -43,8 +43,8 @@ Ensure you have the following installed:
 ### 🏗 Setup 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/vinod827/k8s-nest.git
-   cd k8s-nest
+   git clone https://github.com/vinod827/cloudkit-lab.git
+   cd cloudkit-lab
    ```
 2. Deploy using Helm:
    ```sh
