@@ -66,5 +66,5 @@ This project is licensed under the MIT License.
 ### 👤 Author
 **Vinod Kumar Nair**  
 📧 vinod827@gmail.com  
-📍 [GitHub](https://github.com/vinod827)  
+📍 [LinkedIn](https://www.linkedin.com/in/vinod827/)  
 
